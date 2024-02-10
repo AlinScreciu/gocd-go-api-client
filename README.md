@@ -1,5 +1,7 @@
 
 # GoCD Golang API Client
+[![Go Reference](https://pkg.go.dev/badge/github.com/AlinScreciu/gocd-go-api-client.svg)](https://pkg.go.dev/github.com/AlinScreciu/gocd-go-api-client)
+[![codecov](https://codecov.io/github/AlinScreciu/gocd-go-api-client/graph/badge.svg?token=JDFXFK55XV)](https://codecov.io/github/AlinScreciu/gocd-go-api-client)
 
 A golang client for the GoCD API.
 
