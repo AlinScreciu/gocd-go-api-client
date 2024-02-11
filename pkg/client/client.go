@@ -1,12 +1,13 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
 	"github.com/AlinScreciu/gocd-go-api-client/internal/client"
 	"github.com/AlinScreciu/gocd-go-api-client/internal/logging"
-	"github.com/AlinScreciu/gocd-go-api-client/internal/version"
+	"github.com/AlinScreciu/gocd-go-api-client/pkg/types"
 )
 
 var logger *logging.Logger
@@ -16,7 +17,7 @@ func init() {
 }
 
 type GoCDClient interface {
-	GetVersion() (*version.Version, error)
+	GetVersion() (*types.Version, error)
 }
 
 type Client struct {
@@ -26,20 +27,24 @@ type Client struct {
 func (c *Client) SetDebug() {
 	c.client.Debug = true
 }
+
 func (c *Client) SetBasicAuth(user, password string) {
 	c.client.SetBasicAuth(user, password)
 }
+
 func (c *Client) SetAccessToken(token string) {
 	c.client.SetAccessToken(token)
 }
 
-func NewClient(serverUrl string) (*Client, error) {
+func NewClient(ctx context.Context, serverUrl string) (*Client, error) {
 	url, err := url.Parse(serverUrl)
 	if err != nil {
 		logger.Errorf("failed to parse '%s' to url: '%s'", url, err)
+
 		return nil, fmt.Errorf("failed to parse '%s' to url: '%w'", serverUrl, err)
 	}
+
 	return &Client{
-		client: client.NewClient(url),
+		client: client.NewClient(ctx, url),
 	}, nil
 }

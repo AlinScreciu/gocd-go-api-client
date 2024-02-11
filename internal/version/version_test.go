@@ -1,6 +1,7 @@
 package version
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,7 +9,9 @@ import (
 	"time"
 
 	"github.com/AlinScreciu/gocd-go-api-client/internal/client"
+	"github.com/AlinScreciu/gocd-go-api-client/pkg/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetVersion(t *testing.T) {
@@ -18,27 +21,27 @@ func TestGetVersion(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *Version
+		want    *types.Version
 		wantErr bool
 	}{
 		{
 			name: "TestValid",
-			want: &Version{
+			want: &types.Version{
 				Links: struct {
 					Self struct {
-						Href string "json:\"href\""
-					} "json:\"self\""
+						Href string `json:"href"`
+					} `json:"self"`
 					Doc struct {
-						Href string "json:\"href\""
-					} "json:\"doc\""
+						Href string `json:"href"`
+					} `json:"doc"`
 				}{
 					Self: struct {
-						Href string "json:\"href\""
+						Href string `json:"href"`
 					}{
 						Href: "https://build.go.cd/go/api/version",
 					},
 					Doc: struct {
-						Href string "json:\"href\""
+						Href string `json:"href"`
 					}{
 						Href: "https://api.gocd.org/#version",
 					},
@@ -102,7 +105,6 @@ func TestGetVersion(t *testing.T) {
 				ts: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Length", "100")
 					w.WriteHeader(http.StatusOK)
-
 				})),
 			},
 		},
@@ -116,24 +118,28 @@ func TestGetVersion(t *testing.T) {
 			},
 		},
 	}
+
+	t.Parallel()
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			defer tt.args.ts.Close()
 			url, _ := url.Parse(tt.args.ts.URL)
-			got, err := GetVersion(client.NewClient(url))
+			got, err := GetVersion(client.NewClient(context.TODO(), url))
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.want, got)
-
 		})
 	}
 }
 
 func TestRequestFailureWithTimeout(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simulate a long-running process that exceeds the client timeout
 		time.Sleep(10 * time.Second)
@@ -142,16 +148,17 @@ func TestRequestFailureWithTimeout(t *testing.T) {
 	defer ts.Close()
 
 	url, _ := url.Parse(ts.URL)
-	c := client.NewClient(url)
+	c := client.NewClient(context.TODO(), url)
 	c.HttpClient.Timeout = 1 * time.Second // Set the client timeout to 1 second
 
 	_, err := GetVersion(c)
-	assert.Error(t, err)
+	require.Error(t, err)
 	// The error should be related to the client timeout
 	assert.Contains(t, err.Error(), "Client.Timeout")
 }
 
 func TestNon2xxSuccess(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simulate a 3xx response which should be treated as an error by the client
 		w.WriteHeader(http.StatusMovedPermanently)
@@ -163,15 +170,16 @@ func TestNon2xxSuccess(t *testing.T) {
 	defer ts.Close()
 
 	url, _ := url.Parse(ts.URL)
-	_, err := GetVersion(client.NewClient(url))
-	assert.Error(t, err)
+	_, err := GetVersion(client.NewClient(context.TODO(), url))
+	require.Error(t, err)
 	// The error should contain the 3xx status code
 	assert.Contains(t, err.Error(), "301 Moved Permanently")
 }
 
 func TestClientErrorMalformedURL(t *testing.T) {
-	_, err := GetVersion(client.NewClient(&url.URL{})) // Pass an empty url.URL object
-	assert.Error(t, err)
+	t.Parallel()
+	_, err := GetVersion(client.NewClient(context.TODO(), &url.URL{})) // Pass an empty url.URL object
+	require.Error(t, err)
 	// The error message should indicate the URL is invalid
 	assert.Contains(t, err.Error(), "unsupported protocol scheme")
 }

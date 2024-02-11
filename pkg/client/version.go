@@ -1,7 +1,10 @@
 package client
 
-import "github.com/AlinScreciu/gocd-go-api-client/internal/version"
+import (
+	"github.com/AlinScreciu/gocd-go-api-client/internal/version"
+	"github.com/AlinScreciu/gocd-go-api-client/pkg/types"
+)
 
-func (c *Client) GetVersion() (*version.Version, error) {
+func (c *Client) GetVersion() (*types.Version, error) {
 	return version.GetVersion(c.client)
 }
