@@ -6,7 +6,7 @@ import (
 
 	"github.com/AlinScreciu/gocd-go-api-client/internal/client"
 	"github.com/AlinScreciu/gocd-go-api-client/internal/logging"
-	"github.com/AlinScreciu/gocd-go-api-client/internal/version"
+	"github.com/AlinScreciu/gocd-go-api-client/pkg/types"
 )
 
 var logger *logging.Logger
@@ -16,7 +16,7 @@ func init() {
 }
 
 type GoCDClient interface {
-	GetVersion() (*version.Version, error)
+	GetVersion() (*types.Version, error)
 }
 
 type Client struct {

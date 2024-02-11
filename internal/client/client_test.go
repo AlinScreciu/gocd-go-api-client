@@ -316,7 +316,7 @@ func TestRequestFailureWithTimeout(t *testing.T) {
 	assert.Contains(t, err.Error(), "Client.Timeout")
 
 	// Test the GetETag function
-	_, err = GetETag(c, "/", constants.AcceptV1, "test")
+	_, _, err = GetWithETag[Version](c, "/", constants.AcceptV1, "test")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Client.Timeout")
 }
@@ -337,7 +337,7 @@ func TestNon2xxSuccess(t *testing.T) {
 	assert.Contains(t, err.Error(), "301 Moved Permanently")
 
 	// Test the GetETag function
-	etag, err := GetETag(c, "/", constants.AcceptV1, "test")
+	_, etag, err := GetWithETag[Version](c, "/", constants.AcceptV1, "test")
 	assert.Empty(t, etag)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "301 Moved Permanently")
@@ -362,6 +362,24 @@ func TestGetETag(t *testing.T) {
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("ETag", `"123456"`)
 				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{
+					"_links": {
+					  "self": {
+						"href": "https://build.go.cd/go/api/version"
+					  },
+					  "doc": {
+						"href": "https://api.gocd.org/#version"
+					  }
+					},
+					"version": "16.6.0",
+					"build_number": "3348",
+					"git_sha": "a7a5717cbd60c30006314fb8dd529796c93adaf0",
+					"full_version": "16.6.0 (3348-a7a5717cbd60c30006314fb8dd529796c93adaf0)",
+					"commit_url": "https://github.com/gocd/gocd/commits/a7a5717cbd60c30006314fb8dd529796c93adaf0"
+				  }`))
+				if err != nil {
+					t.Errorf("failed to write body: '%s'", err.Error())
+				}
 			},
 			wantETag: `"123456"`,
 			wantErr:  false,
@@ -372,7 +390,7 @@ func TestGetETag(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			},
 			wantETag: "",
-			wantErr:  false,
+			wantErr:  true,
 		},
 		{
 			name: "TestErrorResponse",
@@ -393,7 +411,7 @@ func TestGetETag(t *testing.T) {
 			url, _ := url.Parse(ts.URL)
 			c := NewClient(url)
 
-			gotETag, err := GetETag(c, "/", constants.AcceptV1, "test")
+			_, gotETag, err := GetWithETag[Version](c, "/", constants.AcceptV1, "test")
 
 			if tt.wantErr {
 				assert.Error(t, err, "Expected an error but got none")

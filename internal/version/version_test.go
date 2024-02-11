@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/AlinScreciu/gocd-go-api-client/internal/client"
+	"github.com/AlinScreciu/gocd-go-api-client/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,12 +19,12 @@ func TestGetVersion(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *Version
+		want    *types.Version
 		wantErr bool
 	}{
 		{
 			name: "TestValid",
-			want: &Version{
+			want: &types.Version{
 				Links: struct {
 					Self struct {
 						Href string "json:\"href\""
