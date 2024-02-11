@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -8,8 +9,7 @@ import (
 )
 
 func main() {
-
-	client, err := client.NewClient("https://gocd.8x8.com/go")
+	client, err := client.NewClient(context.TODO(), "https://gocd.8x8.com/go")
 	if err != nil {
 		fmt.Printf("failed to create client: '%s'\n", err.Error())
 		os.Exit(1)

@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ const (
 )
 
 type Client struct {
+	ctx        context.Context
 	ServerURL  *url.URL
 	HttpClient *http.Client
 	Debug      bool
@@ -47,12 +49,13 @@ func (c *Client) SetAccessToken(token string) {
 	c.token = token
 }
 
-func NewClient(server *url.URL) *Client {
+func NewClient(ctx context.Context, server *url.URL) *Client {
 	return &Client{
 		ServerURL: server,
 		HttpClient: &http.Client{
 			Timeout: time.Minute,
 		},
+		ctx: ctx,
 	}
 }
 
@@ -66,8 +69,7 @@ func setAuth(c *Client, req *http.Request) {
 }
 
 func Get[T any](c *Client, endpoint, accept, module string) (*T, error) {
-
-	var url = c.ServerURL.String() + endpoint
+	url := c.ServerURL.String() + endpoint
 
 	l := logging.NewLogger()
 	if c.Debug {
@@ -78,10 +80,10 @@ func Get[T any](c *Client, endpoint, accept, module string) (*T, error) {
 		"URL":    url,
 	})
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-
+	req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, url, nil)
 	if err != nil {
 		logger.Errorf("failed to create request object, url: %s: '%s'", url, err.Error())
+
 		return nil, fmt.Errorf("failed to create request object, url: %s: '%w'", url, err)
 	}
 
@@ -92,6 +94,7 @@ func Get[T any](c *Client, endpoint, accept, module string) (*T, error) {
 	res, err := c.HttpClient.Do(req)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
+
 		return nil, fmt.Errorf("request failed, url: %s: '%w'", url, err)
 	}
 
@@ -111,29 +114,31 @@ func Get[T any](c *Client, endpoint, accept, module string) (*T, error) {
 		errMsg := sb.String()
 
 		logger.Error(errMsg)
+
 		return nil, errors.New(errMsg)
 	}
 
 	logger.Infof("%d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if err != nil {
 		logger.Errorf("failed to read response body: '%s'", err.Error())
+
 		return nil, fmt.Errorf("failed to read response body: '%w'", err)
 	}
 
 	var t T
 
 	err = json.Unmarshal(body, &t)
-
 	if err != nil {
 		logger.Errorf("failed to parse response body: '%s'", err.Error())
+
 		return nil, fmt.Errorf("failed to parse response body: '%w'", err)
 	}
 
 	return &t, nil
 }
-func GetWithETag[T any](c *Client, endpoint, accept, module string) (*T, string, error) {
 
-	var url = c.ServerURL.String() + endpoint
+func GetWithETag[T any](c *Client, endpoint, accept, module string) (*T, string, error) {
+	url := c.ServerURL.String() + endpoint
 
 	l := logging.NewLogger()
 	if c.Debug {
@@ -144,10 +149,10 @@ func GetWithETag[T any](c *Client, endpoint, accept, module string) (*T, string,
 		"URL":    url,
 	})
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-
+	req, err := http.NewRequestWithContext(c.ctx, http.MethodGet, url, nil)
 	if err != nil {
 		logger.Errorf("failed to create request object, url: %s: '%s'", url, err.Error())
+
 		return nil, "", fmt.Errorf("failed to create request object, url: %s: '%w'", url, err)
 	}
 
@@ -158,6 +163,7 @@ func GetWithETag[T any](c *Client, endpoint, accept, module string) (*T, string,
 	res, err := c.HttpClient.Do(req)
 	if err != nil {
 		logger.Errorf("%s", err.Error())
+
 		return nil, "", fmt.Errorf("request failed, url: %s: '%w'", url, err)
 	}
 
@@ -175,38 +181,37 @@ func GetWithETag[T any](c *Client, endpoint, accept, module string) (*T, string,
 		}
 
 		errMsg := sb.String()
-
 		logger.Error(errMsg)
+
 		return nil, "", errors.New(errMsg)
 	}
 
 	logger.Infof("%d %s", res.StatusCode, http.StatusText(res.StatusCode))
 	if err != nil {
 		logger.Errorf("failed to read response body: '%s'", err.Error())
+
 		return nil, "", fmt.Errorf("failed to read response body: '%w'", err)
 	}
 
 	var t T
 
 	err = json.Unmarshal(body, &t)
-
 	if err != nil {
 		logger.Errorf("failed to parse response body: '%s'", err.Error())
+
 		return nil, "", fmt.Errorf("failed to parse response body: '%w'", err)
 	}
 
 	eTag := res.Header.Get("ETag")
 	if eTag == "" {
-		return nil, "", fmt.Errorf("missing or empty ETag header")
+		return nil, "", errors.New("missing or empty ETag header")
 	}
 
 	return &t, eTag, nil
-
 }
 
 func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module string) (*R, error) {
-
-	var url = c.ServerURL.String() + endpoint
+	url := c.ServerURL.String() + endpoint
 
 	l := logging.NewLogger()
 	if c.Debug {
@@ -227,10 +232,10 @@ func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module str
 		logger.Errorf("failed to encode payload: '%s'", err.Error())
 	}
 
-	req, err := http.NewRequest(http.MethodPut, url, &buf)
-
+	req, err := http.NewRequestWithContext(c.ctx, http.MethodPut, url, &buf)
 	if err != nil {
 		logger.Errorf("failed to create request object: '%s'", err.Error())
+
 		return nil, fmt.Errorf("failed to create request object: '%w'", err)
 	}
 
@@ -262,6 +267,7 @@ func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module str
 		errMsg := sb.String()
 
 		logger.Error(errMsg)
+
 		return nil, errors.New(errMsg)
 	}
 
@@ -274,7 +280,6 @@ func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module str
 	var r R
 
 	err = json.Unmarshal(body, &r)
-
 	if err != nil {
 		logger.Errorf("failed to parse response body: '%s'", err.Error())
 		return nil, fmt.Errorf("failed to parse response body: '%w'", err)
@@ -284,8 +289,7 @@ func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module str
 }
 
 func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, module string) (*R, error) {
-
-	var url = c.ServerURL.String() + endpoint
+	url := c.ServerURL.String() + endpoint
 
 	l := logging.NewLogger()
 	if c.Debug {
@@ -306,8 +310,7 @@ func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, m
 		logger.Errorf("failed to encode payload: '%s'", err.Error())
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, &buf)
-
+	req, err := http.NewRequestWithContext(c.ctx, http.MethodPost, url, &buf)
 	if err != nil {
 		logger.Errorf("failed to create request object: '%s'", err.Error())
 		return nil, fmt.Errorf("failed to create request object: '%w'", err)
@@ -340,6 +343,7 @@ func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, m
 		errMsg := sb.String()
 
 		logger.Error(errMsg)
+
 		return nil, errors.New(errMsg)
 	}
 
@@ -352,7 +356,6 @@ func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, m
 	var r R
 
 	err = json.Unmarshal(body, &r)
-
 	if err != nil {
 		logger.Errorf("failed to parse response body: '%s'", err.Error())
 		return nil, fmt.Errorf("failed to parse response body: '%w'", err)
@@ -362,8 +365,7 @@ func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, m
 }
 
 func Delete(c *Client, endpoint, accept, module string) (string, error) {
-
-	var url = c.ServerURL.String() + endpoint
+	url := c.ServerURL.String() + endpoint
 
 	l := logging.NewLogger()
 	if c.Debug {
@@ -374,8 +376,7 @@ func Delete(c *Client, endpoint, accept, module string) (string, error) {
 		"URL":    url,
 	})
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
-
+	req, err := http.NewRequestWithContext(c.ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		logger.Errorf("failed to create request object: '%s'", err.Error())
 		return "", fmt.Errorf("failed to create request object: '%w'", err)
@@ -407,6 +408,7 @@ func Delete(c *Client, endpoint, accept, module string) (string, error) {
 		errMsg := sb.String()
 
 		logger.Error(errMsg)
+
 		return "", errors.New(errMsg)
 	}
 
@@ -421,7 +423,6 @@ func Delete(c *Client, endpoint, accept, module string) (string, error) {
 	}
 
 	err = json.Unmarshal(body, &resMsg)
-
 	if err != nil {
 		logger.Errorf("failed to parse response body: '%s'", err.Error())
 		return "", fmt.Errorf("failed to parse response body: '%w'", err)
