@@ -230,6 +230,7 @@ func Put[P any, R any](c *Client, payload *P, eTag, endpoint, accept, module str
 	err := enc.Encode(*payload)
 	if err != nil {
 		logger.Errorf("failed to encode payload: '%s'", err.Error())
+		return nil, fmt.Errorf("failed to encode payload: '%w'", err)
 	}
 
 	req, err := http.NewRequestWithContext(c.ctx, http.MethodPut, url, &buf)
@@ -308,6 +309,7 @@ func Post[P any, R any](c *Client, payload *P, endpoint string, accept string, m
 	err := enc.Encode(*payload)
 	if err != nil {
 		logger.Errorf("failed to encode payload: '%s'", err.Error())
+		return nil, fmt.Errorf("failed to encode payload: '%w'", err)
 	}
 
 	req, err := http.NewRequestWithContext(c.ctx, http.MethodPost, url, &buf)
